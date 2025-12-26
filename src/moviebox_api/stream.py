@@ -63,7 +63,7 @@ class StreamFilesDetail(BaseContentProvider):
         )
         return content
 
-    async def get_modelled_content(self, season: int, episode: int) -> StreamFilesMetadata:
+    async def get_content_model(self, season: int, episode: int) -> StreamFilesMetadata:
         """Get modelled version of the streamable files detail.
 
         Args:

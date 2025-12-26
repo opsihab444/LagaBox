@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAGABOX Ultra</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="logo" onclick="route('home')">LAGA<span>BOX</span></div>
+        <div class="search-bar">
+            <input type="text" class="search-input" placeholder="Search movies..." onkeypress="handleSearch(event)">
+            <i class="fa-solid fa-search search-icon"></i>
+        </div>
+        <div class="user-avatar" style="width:35px; height:35px; background:#333; border-radius:50%"></div>
+    </nav>
+
+    <!-- APP CONTAINER -->
+    <div class="app-container">
+
+        <!-- VIEW: HOME -->
+        <div id="view-home" class="view active">
+            <div class="hero-section">
+                <h1 style="font-size: 2.5rem; margin-bottom: 10px;"><span style="color:var(--primary)">Unlimited</span>
+                    Movies & TV.</h1>
+                <p style="color:var(--text-sec)">Stream ultra-fast in HD quality.</p>
+            </div>
+
+            <h3 class="section-title">Trending Now</h3>
+            <div id="home-grid" class="grid">
+                <!-- Skeletons will be here initially -->
+                <div class="media-card skeleton"></div>
+                <div class="media-card skeleton"></div>
+                <div class="media-card skeleton"></div>
+                <div class="media-card skeleton"></div>
+                <div class="media-card skeleton"></div>
+                <div class="media-card skeleton"></div>
+            </div>
+        </div>
+
+        <!-- VIEW: SEARCH -->
+        <div id="view-search" class="view">
+            <h3 class="section-title">Search Results</h3>
+            <div id="search-grid" class="grid"></div>
+        </div>
+
+        <!-- VIEW: DETAILS -->
+        <div id="view-details" class="view">
+            <div class="details-container">
+                <div class="poster-large skeleton" id="det-poster-container">
+                    <img id="det-poster" src="" style="opacity:0; transition:0.3s" onload="this.style.opacity=1">
+                </div>
+                <div>
+                    <h1 id="det-title" class="movie-title skeleton sk-title"></h1>
+
+                    <div id="det-meta" class="meta-tags" style="min-height: 20px;">
+                        <div class="skeleton sk-tag"></div>
+                        <div class="skeleton sk-tag"></div>
+                        <div class="skeleton sk-tag"></div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button id="btn-play" class="btn btn-primary skeleton" style="min-width:140px">
+                            <i class="fa-solid fa-play"></i> Watch Now
+                        </button>
+                        <button id="btn-add" class="btn btn-secondary skeleton" style="min-width:140px">
+                            <i class="fa-regular fa-bookmark"></i> Add to List
+                        </button>
+                    </div>
+
+                    <!-- Description Skeleton Container -->
+                    <div id="det-desc-container">
+                        <div id="det-sk-desc">
+                            <div class="skeleton sk-line"></div>
+                            <div class="skeleton sk-line"></div>
+                            <div class="skeleton sk-line short"></div>
+                        </div>
+                        <p id="det-desc" style="color: #ccc; line-height: 1.8; margin-bottom: 30px; display:none;">
+                            Loading description...
+                        </p>
+                    </div>
+
+                    <div id="det-info-row"
+                        style="display:flex; gap:20px; color:var(--text-sec); font-size:0.9rem; align-items:center;">
+                        <div class="skeleton meta-skeleton-row"></div>
+                    </div>
+
+                    <div id="det-cast-info" class="meta-info-block">
+                        <div id="det-director-row"><span class="meta-label">Director:</span> <span
+                                id="det-director"></span></div>
+                        <div id="det-cast-row"><span class="meta-label">Cast:</span> <span id="det-cast"></span></div>
+                    </div>
+
+                    <div id="det-cast-skeleton" class="meta-info-block" style="display:none;">
+                        <div class="skeleton sk-line" style="width:40%"></div>
+                        <div class="skeleton sk-line" style="width:80%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RECOMMENDATIONS SECTION -->
+            <div style="padding: 0 20px 40px;">
+                <h3 class="section-title">You Might Also Like</h3>
+                <div id="rec-grid" class="grid"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- VIEW: PLAYER (Overlay) -->
+    <div id="view-player" class="view" style="position:fixed; inset:0; z-index:200; background:black;">
+        <div class="player-header">
+            <h3 id="player-title">Playing Movie</h3>
+            <div class="close-player" onclick="closePlayer()">
+                <i class="fa-solid fa-xmark"></i>
+            </div>
+        </div>
+        <iframe id="player-frame" src="" allowfullscreen></iframe>
+    </div>
+
+    <!-- Mobile Bottom Nav -->
+    <div class="mobile-nav">
+        <i class="fa-solid fa-house nav-item active" onclick="route('home')"></i>
+        <i class="fa-solid fa-search nav-item" onclick="document.querySelector('.search-input').focus()"></i>
+        <i class="fa-regular fa-user nav-item"></i>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>

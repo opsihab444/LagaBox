@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watching: {{ title }}</title>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- VidStack Styles (Official) -->
+    <link rel="stylesheet" href="https://cdn.vidstack.io/player/theme.css" />
+    <link rel="stylesheet" href="https://cdn.vidstack.io/player/video.css" />
+
+    <!-- VidStack Elements (Official) -->
+    <script src="https://cdn.vidstack.io/player" type="module"></script>
+
+    <style>
+        /* --- GLOBAL RESET --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body,
+        html {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* --- PLAYER THEME --- */
+        media-player {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            --brand: #E50914;
+            /* Netflix Red for that specific feel, or change to #1CE783 for Green */
+            --media-brand: #1CE783;
+            --media-focus-ring: 0 0 0 3px rgba(28, 231, 131, 0.5);
+            --media-slider-track-fill-bg: #1CE783;
+            --media-font-family: 'Outfit', sans-serif;
+        }
+
+        /* --- BRANDED ANIMATION: CINEMATIC ORBIT --- */
+        #loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: #000;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s ease-out, transform 0.3s ease-in;
+            /* Super fast exit */
+        }
+
+        #loading-overlay.hidden {
+            opacity: 0;
+            transform: scale(1.1);
+            /* Subtle zoom out on exit */
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .orbit-container {
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+
+        /* Core Planet */
+        .orbit-core {
+            position: absolute;
+            inset: 25%;
+            background: var(--brand);
+            border-radius: 50%;
+            box-shadow: 0 0 30px var(--brand);
+            animation: core-pulse 1.5s infinite ease-in-out;
+        }
+
+        /* Ring 1 */
+        .orbit-ring {
+            position: absolute;
+            inset: 0;
+            border: 2px solid rgba(28, 231, 131, 0.3);
+            border-top: 2px solid var(--brand);
+            border-radius: 50%;
+            animation: ring-spin 1s infinite linear;
+        }
+
+        /* Ring 2 (Counter rotation) */
+        .orbit-ring-outer {
+            position: absolute;
+            inset: -15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            animation: ring-spin-reverse 2s infinite linear;
+        }
+
+        @keyframes ring-spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes ring-spin-reverse {
+            100% {
+                transform: rotate(-360deg);
+            }
+        }
+
+        @keyframes core-pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
+
+            50% {
+                transform: scale(0.6);
+                opacity: 0.4;
+            }
+        }
+
+        /* --- CUSTOM UI OVERRIDES --- */
+        media-player[data-layout="video"] {
+            --video-controls-background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.4) 40%, transparent 100%);
+        }
+
+        /* SYNC Quality Button with Player Controls */
+        /* Default: Hidden */
+        #quality-controls {
+            display: none !important;
+        }
+
+        /* Show when VidStack controls are visible */
+        body:has(media-controls[data-visible]) #quality-controls {
+            display: block !important;
+        }
+    </style>
+</head>
+
+<body oncontextmenu="return false;">
+
+    <!-- UNIQUE BRANDED ANIMATION -->
+    <div id="loading-overlay">
+        <div class="orbit-container">
+            <div class="orbit-ring-outer"></div>
+            <div class="orbit-ring"></div>
+            <div class="orbit-core"></div>
+        </div>
+    </div>
+
+    <!-- VIDSTACK PLAYER -->
+    <media-player src="" title="{{ title }}" aspect-ratio="16/9" autoplay playsinline
+        storage="moviebox-player-settings">
+
+        <media-provider></media-provider>
+        <media-video-layout thumbnails=""></media-video-layout>
+
+    </media-player>
+
+    <!-- Custom Quality Menu (Synced with Control Bar) -->
+    <div id="quality-controls" style="position:absolute; bottom:14px; right:150px; z-index:90;">
+
+        <!-- Upward opening menu -->
+        <div id="q-menu" style="
+            position: absolute; 
+            bottom: 100%; 
+            right: -20px; 
+            margin-bottom: 20px;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px; 
+            width: 100px; 
+            overflow: hidden; 
+            display: none; 
+            flex-direction: column; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            padding: 4px 0;
+        ">
+            <!-- Items injected via JS -->
+        </div>
+
+        <button id="q-btn" onclick="toggleQMenu()" style="
+            background: transparent; 
+            color: #fff; 
+            border: none;
+            padding: 5px 10px; 
+            cursor: pointer; 
+            font-family: inherit; 
+            font-weight: 700; 
+            font-size: 14px; 
+            display: flex; 
+            align-items: center; 
+            gap: 5px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            opacity: 0.9;
+            transition: opacity 0.2s;
+        ">
+            <span id="q-label">Quality</span>
+        </button>
+    </div>
+
+    <script>
+        // --- PLAYER CONTROLLER ---
+        const movieTitle = "{{ title }}";
+        const movieId = "{{ id }}";
+        const player = document.querySelector('media-player');
+        const overlay = document.getElementById('loading-overlay');
+        const qControls = document.getElementById('quality-controls');
+        const qMenu = document.getElementById('q-menu');
+        const qLabel = document.getElementById('q-label');
+
+        let qualitiesData = [];
+        let currentQualityIndex = 0;
+
+        // Toggle Menu
+        function toggleQMenu() {
+            const isHidden = qMenu.style.display === 'none';
+            qMenu.style.display = isHidden ? 'flex' : 'none';
+        }
+
+        // 1. Fetch Qualities
+        async function fetchQualities() {
+            const prefetched = sessionStorage.getItem(`stream_${movieId}`);
+            if (prefetched) {
+                try {
+                    const data = JSON.parse(prefetched);
+                    if (data.success) return data;
+                } catch (e) { }
+            }
+
+            try {
+                const cachedDetailPath = sessionStorage.getItem(`dpath_${movieId}`);
+                let url = `/api/stream/${movieId}`;
+                if (cachedDetailPath) url += `?detail_path=${encodeURIComponent(cachedDetailPath)}`;
+
+                const response = await fetch(url);
+                return await response.json();
+            } catch (e) { return null; }
+        }
+
+        // CHANGE QUALITY FUNCTION (Seamless - No Overlay)
+        window.changeQuality = function (index) {
+            const q = qualitiesData[index];
+            if (!q || index === currentQualityIndex) return;
+
+            const savedTime = player.currentTime;
+            const wasPlaying = !player.paused;
+
+            console.log(`Swapping to ${q.label} at ${savedTime}s`);
+
+            // NO OVERLAY - Just keep player visible
+
+            // 1. PREPARE LISTENERS
+            player.addEventListener('loaded-metadata', function onLoaded() {
+                if (savedTime > 0) {
+                    player.currentTime = savedTime;
+                }
+            }, { once: true });
+
+            player.addEventListener('can-play', function onCanPlay() {
+                if (wasPlaying) {
+                    player.play().catch(() => { });
+                }
+            }, { once: true });
+
+            // 2. Update Source
+            player.src = { src: q.url || q.proxy_url, type: 'video/mp4' };
+
+            // 3. Update UI
+            qLabel.textContent = q.label;
+            qMenu.style.display = 'none';
+            currentQualityIndex = index;
+
+            // Highlight active
+            document.querySelectorAll('.q-item').forEach((el, idx) => {
+                el.style.background = idx === index ? 'rgba(28, 231, 131, 0.15)' : 'transparent';
+                el.style.color = idx === index ? '#1CE783' : '#fff';
+            });
+        };
+
+        async function init() {
+            const data = await fetchQualities();
+            if (!data || !data.qualities) {
+                overlay.classList.add('hidden'); // Show error state if needed
+                return;
+            }
+
+            qualitiesData = data.qualities.map(q => ({ ...q, url: q.proxy_url || q.url }));
+
+            // Build Quality Menu
+            // Build Quality Menu (Bottom-Up)
+            qMenu.innerHTML = qualitiesData.map((q, idx) => `
+                <div class="q-item" onclick="changeQuality(${idx})" style="
+                    padding: 8px 15px; 
+                    cursor: pointer; 
+                    font-size: 13px; 
+                    font-weight: 500;
+                    color: #fff;
+                    text-align: center;
+                    transition: 0.2s;
+                ">
+                    ${q.label}
+                </div>
+            `).join('');
+
+            // Show Controls
+            qControls.style.display = 'block';
+
+            // Pick Best Default (720p or 480p)
+            let defaultIndex = qualitiesData.findIndex(q => q.label.includes('720p'));
+            if (defaultIndex === -1) defaultIndex = 0;
+
+            // Initial Load
+            const startQ = qualitiesData[defaultIndex];
+            qLabel.textContent = startQ.label;
+
+            // Set initial active state style (Green)
+            setTimeout(() => {
+                const items = document.querySelectorAll('.q-item');
+                if (items[defaultIndex]) {
+                    items[defaultIndex].style.color = '#1CE783';
+                }
+            }, 100);
+
+            player.src = { src: startQ.url, type: 'video/mp4' };
+
+            currentQualityIndex = defaultIndex;
+
+            console.log("🚀 Link ready - Removing loader");
+            overlay.classList.add('hidden');
+
+            // Keyboard: Arrow Left/Right for Seek
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowRight') player.currentTime += 10;
+                if (e.key === 'ArrowLeft') player.currentTime -= 10;
+            });
+        }
+
+        init();
+
+
+        // CSS now handles syncing quality button with player controls
+        // via body:has(media-player[data-controls="hidden"]) selector
+
+
+        // --- CUSTOM PRESETS ---
+        // Force maximize quality feeling
+        player.addEventListener('volume-change', (detail) => {
+            // Persist volume
+            localStorage.setItem('moviebox-volume', detail.volume);
+        });
+
+    </script>
+</body>
+
+</html>

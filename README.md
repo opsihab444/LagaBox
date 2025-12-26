@@ -797,3 +797,4 @@ Please read our contribution guidelines before submitting a PR.
 [Report Bug](https://github.com/Simatwa/moviebox-api/issues) • [Request Feature](https://github.com/Simatwa/moviebox-api/issues) • [⭐ Star on GitHub](https://github.com/Simatwa/moviebox-api)
 
 </div>
+# LagaBox

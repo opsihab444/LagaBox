@@ -219,3 +219,5 @@ commit-msg*
 *.html
 *.part
 temp/
+!modular/**/*.html
+!templates/*.html
