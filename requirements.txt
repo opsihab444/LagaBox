@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+httpx
+jinja2
+requests
+beautifulsoup4
+lxml
+aiofiles
+python-multipart
