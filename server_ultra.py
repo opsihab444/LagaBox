@@ -127,22 +127,31 @@ async def get_stream_links_fast(subject_id: str, detail_path: str = None) -> dic
     
     try:
         # 🔑 KEY FIX: Use session with cookies!
-        if global_api_session:
-            # Use the global session which has valid cookies
-            data = await global_api_session.get_with_cookies_from_api(
-                url=download_url,
-                params=params,
-                headers=headers
+        current_session = global_api_session if global_api_session else None
+        
+        # Retry Logic for 403 Forbidden
+        try:
+            if current_session:
+                data = await current_session.get_with_cookies_from_api(
+                    url=download_url, flags=params, headers=headers
+                )
+            else:
+                raise Exception("No active session")
+        except Exception as e:
+            # If 403 or logic error, try REFRESHING session purely locally
+            print(f"⚠️ Primary session failed: {e}. Retrying with fresh session...")
+            
+            # Temporary fresh session
+            temp_session = Session()
+            await temp_session.ensure_cookies_are_assigned()
+            
+            # Use Mobile User-Agent specifically for fallback
+            headers["User-Agent"] = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36"
+            
+            data = await temp_session.get_with_cookies_from_api(
+                url=download_url, params=params, headers=headers
             )
-        else:
-            # Fallback: Create new session (slower but works)
-            session = Session()
-            await session.ensure_cookies_are_assigned()
-            data = await session.get_with_cookies_from_api(
-                url=download_url,
-                params=params,
-                headers=headers
-            )
+
         
         # Debug: Log the raw response
         print(f"   Raw downloads count: {len(data.get('downloads', []))}")
