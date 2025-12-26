@@ -103,9 +103,10 @@
 <body>
     <div class="artplayer-app"></div>
     <script>
+        // Initialize Player with Loader
         var art = new Artplayer({
             container: '.artplayer-app',
-            url: '{{ stream_url }}',
+            url: '', // Will be set after fetch
             title: '{{ title }}',
             poster: '',
             volume: 0.8,
@@ -113,25 +114,72 @@
             muted: false,
             autoplay: true,
             pip: true,
-            autoSize: false,
+            theme: '#e50914',
             autoMini: true,
-            screenshot: true,
             setting: true,
-            loop: false,
-            flip: true,
             playbackRate: true,
             aspectRatio: true,
             fullscreen: true,
             fullscreenWeb: true,
-            subtitleOffset: true,
-            miniProgressBar: true,
-            mutex: true,
-            backdrop: true,
-            playsInline: true,
-            autoPlayback: true,
-            airplay: true,
-            theme: '#e50914',
+            plugins: [],
+            icons: {
+                loading: '<div class="custom-loader"><div class="spinner"></div></div>',
+            }
         });
+
+        // Client-Side Fetch Logic
+        async function fetchVideo() {
+            art.loading.show = true;
+            const movieId = "{{ id }}";
+            const apiUrl = `https://corsproxy.io/?https://h5.aoneroom.com/wefeed-h5-bff/web/subject/download?subjectId=${movieId}&se=0&ep=0`;
+
+            try {
+                console.log("Fetching stream from browser...");
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                if (data.data && data.data.downloads && data.data.downloads.length > 0) {
+                    // Sort by resolution
+                    const downloads = data.data.downloads.sort((a, b) => b.resolution - a.resolution);
+                    const best = downloads[0];
+
+                    console.log("Stream found:", best.url);
+
+                    // Set Qualities in Settings
+                    const qualityList = downloads.map(d => ({
+                        html: d.resolution + 'p',
+                        url: d.url,
+                        default: d === best
+                    }));
+
+                    art.setting.add({
+                        html: 'Quality',
+                        width: 150,
+                        tooltip: best.resolution + 'p',
+                        selector: qualityList,
+                        onSelect: function (item) {
+                            art.switchUrl(item.url);
+                            return item.html;
+                        },
+                    });
+
+                    // Play
+                    art.switchUrl(best.url);
+                    art.play();
+
+                } else {
+                    art.notice.show = 'No stream links found for this movie.';
+                }
+
+            } catch (e) {
+                console.error(e);
+                art.notice.show = 'Error fetching stream. Check console.';
+            } finally {
+                art.loading.show = false;
+            }
+        }
+
+        fetchVideo();
     </script>
 </body>
 

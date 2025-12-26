@@ -756,14 +756,14 @@ async def player_page(request: Request, title: str, id: str):
     return templates.TemplateResponse("player.html", {"request": request, "title": title, "id": id})
 
 @app.get("/watch", response_class=HTMLResponse)
-async def watch_video(request: Request, url: str, referer: str, title: str, quality: str = "720"):
+async def watch_video(request: Request, id: str, title: str):
     """
     Serves the ArtPlayer UI for a premium experience.
+    Link fetching happens client-side to assume residential IP.
     """
-    stream_url = f"/stream/{url}/{referer}/{title.replace(' ', '_')}_{quality}p.mp4"
     return templates.TemplateResponse("watch.html", {
         "request": request,
-        "stream_url": stream_url,
+        "id": id,
         "title": title
     })
 

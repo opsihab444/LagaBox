@@ -38,38 +38,12 @@ window.onload = function () {
     }
 };
 
-// --- API CONFIG ---
-const API_BASE = "https://h5.aoneroom.com/wefeed-h5-bff/web";
-const TRENDING_API = "https://h5-api.aoneroom.com/wefeed-h5api-bff/ranking-list/content?id=5837669637445565960&page=1&perPage=20";
-
 // --- API HELPERS ---
-async function apiFetch(endpoint, options = {}) {
-    // If endpoint starts with http, it's a direct external link
-    const url = endpoint.startsWith('http') ? endpoint : `/api${endpoint}`;
-
-    // Direct API calls (Bypassing Server Proxy)
-    if (url.includes(API_BASE) || url.includes(TRENDING_API)) {
-        try {
-            const res = await fetch(url, options);
-            const json = await res.json();
-            // Normalize "Direct API" structure to match our app's expectation
-            // API usually returns { code: 0, data: { ... } }
-            // Our App expects { success: true, data: ... }
-            if (json.code === 0 || json.success) {
-                return { success: true, data: json.data || json };
-            }
-            return { success: false, error: json.message };
-        } catch (e) {
-            console.error("Direct API Error:", e);
-            return { success: false, error: e.message };
-        }
-    }
-
-    // Local Calls (Fallbacks)
+async function apiFetch(endpoint) {
     if (state.cache[endpoint]) return state.cache[endpoint];
     const res = await fetch(endpoint);
     const data = await res.json();
-    if (data.success && endpoint.includes('details')) state.cache[endpoint] = data;
+    if (data.success && endpoint.includes('details')) state.cache[endpoint] = data; // Cache details
     return data;
 }
 
@@ -78,24 +52,14 @@ async function initHome() {
     if (document.getElementById('home-grid').children.length > 12) return; // Already loaded?
 
     try {
-        // Fetch REAL Trending Data (DIRECT FROM API)
-        const data = await apiFetch(TRENDING_API);
+        // Fetch REAL Trending Data
+        const data = await apiFetch('/api/home');
 
-        if (data.success) {
-            // API returns { data: { subjectList: [...] } }
-            // Or our helper normalized it to { success:true, data: { subjectList... } }
-            // Let's handle the specific BD Trending API structure
-
-            const rawData = data.data;
-            const subjectList = rawData.subjectList || (rawData.data ? rawData.data.subjectList : []);
-
-            if (subjectList && subjectList.length > 0) {
-                renderGrid(subjectList, 'home-grid');
-                return;
-            }
-            // Fallback Logic below...
+        if (data.success && data.data) {
             const content = data.data;
             let trendingItems = [];
+
+            // Parse Operating List
             const opList = content.operatingList || (Array.isArray(content) ? content : []);
 
             // 1. Try to find "Trending" section
@@ -133,107 +97,195 @@ function handleSearch(e) {
 async function doSearch(query) {
     if (!query) return;
     document.getElementById('search-grid').innerHTML = '<div class="skeleton" style="height:200px; grid-column:1/-1"></div>';
-
-    // Direct POST Search
-    const data = await apiFetch(`${API_BASE}/subject/search`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-            keyword: query,
-            page: 1,
-            perPage: 24,
-            subjectType: 0
-        })
-    });
-
-    if (data.success && data.data && data.data.list) {
-        renderGrid(data.data.list, 'search-grid');
+    const data = await apiFetch(`/api/search?q=${encodeURIComponent(query)}&page=1`);
+    if (data.success && data.data.items) {
+        renderGrid(data.data.items, 'search-grid');
     } else {
         document.getElementById('search-grid').innerHTML = '<p>No results found.</p>';
     }
 }
 
-// --- RECOMMENDATIONS ---
-async function loadRecommendations(id) {
-    // Direct POST Recommendations
-    const data = await apiFetch(`${API_BASE}/subject/detail-rec`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subjectId: id, page: 1, perPage: 12 })
-    });
+// --- LAZY LOADING ---
+function setupLazyLoading() {
+    if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries, obs) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    const src = img.getAttribute('data-src');
+                    if (src) {
+                        img.src = src;
+                        img.onload = () => img.classList.add('loaded');
+                        img.onerror = () => img.classList.add('loaded'); // Show placeholder if fail
+                        img.removeAttribute('data-src');
+                        obs.unobserve(img);
+                    }
+                }
+            });
+        }, { rootMargin: "200px" });
 
-    if (data.success && (data.data.items || data.data.list)) {
-        renderGrid(data.data.items || data.data.list, 'rec-grid');
+        document.querySelectorAll('.lazy-img[data-src]').forEach(img => observer.observe(img));
+    } else {
+        document.querySelectorAll('.lazy-img[data-src]').forEach(img => {
+            img.src = img.getAttribute('data-src');
+            img.onload = () => img.classList.add('loaded');
+        });
     }
 }
 
 
-// --- PLAYER (CLIENT SIDE ARTPLAYER) ---
-var art = null;
 
-async function openPlayer(id, title) {
-    document.getElementById('player-title').textContent = title;
-    const container = document.getElementById('artplayer-container');
-    container.innerHTML = '<div class="custom-loader" style="height:100%; display:flex; align-items:center; justify-content:center; color:white;">Fetching Stream Links...</div>';
+// --- RENDER GRID ---
+function renderGrid(items, containerId) {
+    const container = document.getElementById(containerId);
 
-    // 1. Fetch Download Links
-    const data = await apiFetch(`${API_BASE}/subject/download?subjectId=${id}&se=0&ep=0`);
+    container.innerHTML = items.map(item => {
+        // 🚀 OPTIMIZATION: Use API dominant colors for instant "BlurHash-like" placeholder
+        const cover = item.cover || item.image || {};
+        const color1 = cover.avgHueDark || '#1a1a1a';
+        const color2 = cover.avgHueLight || '#333';
+        const bgStyle = `background: linear-gradient(135deg, ${color1}, ${color2})`;
 
-    if (data.success && data.data.downloads && data.data.downloads.length > 0) {
-        const downloads = data.data.downloads;
-        // Sort by resolution desc
-        downloads.sort((a, b) => b.resolution - a.resolution);
+        // Logic for badges (Corner or Quality)
+        const badgeText = item.corner || (item.quality ? item.quality : '');
+        const badgeHtml = badgeText ? `<div class="card-badge">${badgeText}</div>` : '';
 
-        const bestSource = downloads[0];
+        return `
+        <div class="media-card" style="${bgStyle}" onclick="route('details', {id: '${item.subjectId || item.id}'})">
+            ${badgeHtml}
+            <img class="media-img lazy-img" 
+                 decoding="async" 
+                 loading="lazy"
+                 data-src="${cover.url || ''}" 
+                 src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+            <div class="media-info">
+                <h4 class="media-title">${item.title}</h4>
+                <div class="media-meta" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.8rem; opacity:0.8">${item.releaseDate ? item.releaseDate.substring(0, 4) : (item.year || '')}</span>
+                    <span class="rating-pill">
+                        <i class="fa-solid fa-star"></i> ${item.imdbRatingValue || item.score || 'N/A'}
+                    </span>
+                </div>
+            </div>
+        </div>
+    `}).join('');
+    setupLazyLoading();
+}
 
-        // 2. Init ArtPlayer
-        if (art) art.destroy();
+// --- DETAILS VIEW ---
+async function loadDetails(id) {
+    // Reset UI to skeletons
+    document.getElementById('det-title').textContent = '';
+    document.getElementById('det-title').classList.add('skeleton', 'sk-title');
 
-        art = new Artplayer({
-            container: '#artplayer-container',
-            url: bestSource.url,
-            title: title,
-            volume: 0.8,
-            isLive: false,
-            autoplay: true,
-            theme: '#00f2ea', // Neon Cyan
+    // Meta Tags Reset
+    document.getElementById('det-meta').innerHTML = '<div class="skeleton sk-tag"></div><div class="skeleton sk-tag"></div><div class="skeleton sk-tag"></div>';
 
-            // Quality Selector
-            settings: [
-                {
-                    html: 'Quality',
-                    tooltip: bestSource.resolution + 'p',
-                    selector: downloads.map(d => ({
-                        html: `${d.resolution}p (${Math.round(d.size / 1024 / 1024)}MB)`,
-                        url: d.url,
-                        default: d === bestSource
-                    })),
-                    onSelect: function (item) {
-                        art.switchUrl(item.url);
-                        return item.html;
-                    },
-                }
-            ],
+    // Description Reset
+    document.getElementById('det-sk-desc').style.display = 'block';
+    document.getElementById('det-desc').style.display = 'none';
 
-            icons: {
-                loading: '<div style="color:#00f2ea">buffering...</div>',
-            }
-        });
+    // Buttons & Info Row Reset
+    document.getElementById('btn-play').classList.add('skeleton');
+    document.getElementById('btn-add').classList.add('skeleton');
+    document.getElementById('det-info-row').innerHTML = '<div class="skeleton meta-skeleton-row"></div>';
 
-    } else {
-        container.innerHTML = '<div style="color:red; text-align:center; padding-top:40%">No Stream Links Found.<br>Try another movie.</div>';
+    // Cast Skeleton Reset
+    document.getElementById('det-cast-info').style.display = 'none';
+    document.getElementById('det-cast-skeleton').style.display = 'block';
+
+    // Poster Reset
+    document.getElementById('det-poster').style.opacity = '0';
+    document.getElementById('det-poster-container').classList.add('skeleton');
+
+    // Rec Grid Reset
+    document.getElementById('rec-grid').innerHTML = '<div class="media-card skeleton"></div>'.repeat(6);
+
+    const data = await apiFetch(`/api/details/${id}`);
+
+    if (data.success) {
+        const s = data.data.subject;
+
+        document.getElementById('det-title').textContent = s.title;
+        document.getElementById('det-title').classList.remove('skeleton', 'sk-title');
+
+        const desc = s.description || "No description available for this content.";
+        document.getElementById('det-desc').textContent = desc;
+        document.getElementById('det-sk-desc').style.display = 'none';
+        document.getElementById('det-desc').style.display = 'block';
+
+        // Buttons & Info Row Reveal
+        document.getElementById('btn-play').classList.remove('skeleton');
+        document.getElementById('btn-add').classList.remove('skeleton');
+
+        document.getElementById('det-info-row').innerHTML = `
+             <div class="rating-pill" style="font-size:1rem; padding: 4px 12px;">
+                <i class="fa-brands fa-imdb" style="font-size:1.2em"></i> 
+                <span style="font-weight:bold; margin-left:5px">${s.imdbRatingValue || s.score || 'N/A'}</span>
+             </div>
+             <div style="opacity:0.75; font-size:0.95rem; display:flex; gap:6px; align-items:center; margin-left:15px">
+                <i class="fa-regular fa-calendar"></i> <span>${s.releaseDate || s.year || 'N/A'}</span>
+             </div>
+             <div style="opacity:0.75; font-size:0.95rem; display:flex; gap:6px; align-items:center; margin-left:15px">
+                <i class="fa-regular fa-clock"></i> <span>${s.duration ? Math.round(s.duration / 60) + ' min' : 'N/A'}</span>
+             </div>
+        `;
+
+        // Cast & Crew Populate
+        // Note: API returns 'stars' in the root data object, not inside 'subject'
+        const stars = data.data.stars || [];
+        const actors = stars.filter(s => s.staffType === 1).map(a => a.name).slice(0, 8).join(', ');
+        const directors = stars.filter(s => s.staffType === 2).map(d => d.name).join(', ') || 'Unknown';
+        // Fallback: if no staffType distinction found in this sample, just assume all stars are cast for now.
+        const displayCast = actors || stars.map(s => s.name).slice(0, 8).join(', ') || 'Unknown';
+
+        document.getElementById('det-director').textContent = directors; // Director might be empty if not in stars
+        document.getElementById('det-cast').textContent = displayCast;
+
+        document.getElementById('det-cast-skeleton').style.display = 'none';
+        document.getElementById('det-cast-info').style.display = 'block';
+
+        if (s.cover && s.cover.url) {
+            document.getElementById('det-poster').src = s.cover.url;
+            document.getElementById('det-poster-container').classList.remove('skeleton');
+        }
+
+        // Tags
+        let tagsHtml = '';
+        // Genre string is "Action,Adventure,Sci-Fi" in the response, not array of objects
+        if (s.genre) {
+            tagsHtml = s.genre.split(',').map(g => `<span class="tag">${g.trim()}</span>`).join('');
+        } else if (s.movieCategory) {
+            tagsHtml = s.movieCategory.map(c => `<span class="tag">${c.name}</span>`).join('');
+        }
+
+        if (s.title.includes('CAM')) tagsHtml += `<span class="tag" style="background:red; color:white">CAM</span>`;
+        document.getElementById('det-meta').innerHTML = tagsHtml;
+
+        // Play Button
+        document.getElementById('btn-play').onclick = () => route('player', { id: id, title: s.title });
+
+        // Trigger Recommendations (Native ID-based)
+        loadRecommendations(id);
     }
+}
+
+async function loadRecommendations(id) {
+    // Use dedicated recommendation API
+    const data = await apiFetch(`/api/recommendations?id=${id}&page=1`);
+    if (data.success && data.data.items) {
+        renderGrid(data.data.items.slice(0, 12), 'rec-grid');
+    }
+}
+
+// --- PLAYER ---
+function openPlayer(id, title) {
+    document.getElementById('player-title').textContent = title;
+    document.getElementById('player-frame').src = `/player?id=${id}&title=${encodeURIComponent(title)}`;
 }
 
 function closePlayer() {
-    if (art) {
-        art.destroy();
-        art = null;
-    }
-    document.getElementById('artplayer-container').innerHTML = '';
+    document.getElementById('player-frame').src = "";
     route('details', { id: state.lastDetailsId || state.params.id });
     document.getElementById('view-player').classList.remove('active');
 }
