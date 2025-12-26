@@ -117,8 +117,16 @@ async def get_stream_links_fast(subject_id: str, detail_path: str = None) -> dic
     # 🔑 Use get_absolute_url() like the working endpoint does!
     referer_url = get_absolute_url(f"/movies/{detail_path}")
     headers = {
+        "Host": "h5.aoneroom.com",
         "Referer": referer_url,
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"
+        "Origin": "https://h5.aoneroom.com",
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Dest": "empty",
+        "Connection": "keep-alive"
     }
     
     print(f"📡 Fetching stream for {subject_id}")
@@ -133,7 +141,7 @@ async def get_stream_links_fast(subject_id: str, detail_path: str = None) -> dic
         try:
             if current_session:
                 data = await current_session.get_with_cookies_from_api(
-                    url=download_url, flags=params, headers=headers
+                    url=download_url, params=params, headers=headers
                 )
             else:
                 raise Exception("No active session")
